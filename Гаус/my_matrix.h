@@ -1,18 +1,17 @@
 #pragma once
 #include <iostream>
 #include <vector>
-using namespace std;
 
 class Matrix {
 protected:
     int n = 0, m = 0;
-    vector<vector<double>> arr;
+    std::vector<std::vector<double>> arr;
 public:
     Matrix(int n1, int m1) {
         this->n = n1;
         this->m = m1;
         for (int i = 0; i < n1; i++) {
-            vector<double> row;
+            std::vector<double> row;
             for (int j = 0; j < m1; j++) {
                 row.push_back(0);
             }
@@ -31,9 +30,9 @@ public:
     void show() const {
         for (int i = 0; i < this->n; i++) {
             for (int j = 0; j < this->m; j++) {
-                cout << this->arr[i][j] << " ";
+                std::cout << this->arr[i][j] << " ";
             }
-            cout << endl;
+            std::cout << std::endl;
         }
     }
 

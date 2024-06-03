@@ -1,6 +1,5 @@
 #pragma once
 #include <iostream>
-using namespace std;
 
 class Vector {
 private:
@@ -50,9 +49,9 @@ public:
 
     void show() const {
         for (int i = 0; i < this->N; i++) {
-            cout << this->a[i] << " ";
+            std::cout << this->a[i] << " ";
         }
-        cout << endl;
+        std::cout << std::endl;
     }
 
     int size() const {
