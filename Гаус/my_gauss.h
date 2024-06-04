@@ -30,42 +30,41 @@ public:
             }
 
             // swap максимальной строки с текущей строкой
+            if (maxEl == 0) {
+                // проверка на совместимость системы
+                bool allZero = true;
+                for (int j = i; j < m; j++) {
+                    if (A_copy(i, j) != 0) {
+                        allZero = false;
+                        break;
+                    }
+                }
+                if (allZero && b_copy[i] != 0) {
+                    // система не имеет решений
+                    return {};
+                }
+                continue; // переходим к следующей строке
+            }
+
             for (int k = i; k < m; k++) {
                 std::swap(A_copy(maxRow, k), A_copy(i, k));
             }
             std::swap(b_copy[maxRow], b_copy[i]);
 
             // делать все строки ниже текущей ведущей строки 0 в текущем столбце
-            if (A_copy(i, i) != 0) {
-                pivot[i] = i;
-                for (int k = i + 1; k < n; k++) {
-                    if (A_copy(k, i) == 0) continue;
-                    double c = -A_copy(k, i) / A_copy(i, i);
-                    for (int j = i; j < m; j++) {
-                        if (i == j) {
-                            A_copy(k, j) = 0;
-                        }
-                        else {
-                            A_copy(k, j) += c * A_copy(i, j);
-                        }
+            pivot[i] = i;
+            for (int k = i + 1; k < n; k++) {
+                if (A_copy(k, i) == 0) continue;
+                double c = -A_copy(k, i) / A_copy(i, i);
+                for (int j = i; j < m; j++) {
+                    if (i == j) {
+                        A_copy(k, j) = 0;
                     }
-                    b_copy[k] += c * b_copy[i];
+                    else {
+                        A_copy(k, j) += c * A_copy(i, j);
+                    }
                 }
-            }
-        }
-
-        // проверка на совместимость системы и нахождение решения
-        for (int i = 0; i < n; i++) {
-            bool allZero = true;
-            for (int j = 0; j < m; j++) {
-                if (A_copy(i, j) != 0) {
-                    allZero = false;
-                    break;
-                }
-            }
-            if (allZero && b_copy[i] != 0) {
-                // система не имеет решений
-                return {};
+                b_copy[k] += c * b_copy[i];
             }
         }
 
@@ -115,7 +114,7 @@ public:
 
         // обратная подстановка для нахождения решения
         Vector x(m);
-        for (int i = rank - 1; i >= 0; i--) {
+        for (int i = m - 1; i >= 0; i--) {
             if (pivot[i] == -1) continue;
             x[pivot[i]] = b_copy[i];
             for (int j = i + 1; j < m; j++) {
