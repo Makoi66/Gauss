@@ -2,126 +2,152 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
-#include "my_vector.h"
-#include "my_matrix.h"
+#include <algorithm> // для std::find
+
+
 
 class GaussSolver {
 private:
     std::vector<Vector> res;
+
 public:
     std::vector<Vector> solve(const Matrix& A, const Vector& b) {
         int n = A.rows();
         int m = A.cols();
-        Matrix A_copy = A; // создаем копию матрицы
-        Vector b_copy = b; // создаем копию вектора
+        Matrix A_copy = A;
+        Vector b_copy = b;
 
         std::vector<int> pivot(m, -1);
+        std::vector<int> col_permutation(m);
+        for (int i = 0; i < m; ++i) {
+            col_permutation[i] = i;
+        }
 
-        // прямой ход Гаусса
+        // прямой ход Гаусса с выбором главного элемента
+        int rank = 0;
         for (int i = 0; i < std::min(n, m); i++) {
-            // поиск максимального элемента в столбце
-            double maxEl = std::abs(A_copy(i, i));
-            int maxRow = i;
-            for (int k = i + 1; k < n; k++) {
-                if (std::abs(A_copy(k, i)) > maxEl) {
-                    maxEl = std::abs(A_copy(k, i));
-                    maxRow = k;
-                }
-            }
-
-            // swap максимальной строки с текущей строкой
-            if (maxEl == 0) {
-                // проверка на совместимость системы
-                bool allZero = true;
-                for (int j = i; j < m; j++) {
-                    if (A_copy(i, j) != 0) {
-                        allZero = false;
-                        break;
+            // поиск максимального элемента в подматрице
+            double maxEl = 0.0;
+            int maxRow = i, maxCol = i;
+            for (int k = i; k < n; k++) {
+                for (int l = i; l < m; l++) {
+                    if (std::abs(A_copy(k, l)) > maxEl) {
+                        maxEl = std::abs(A_copy(k, l));
+                        maxRow = k;
+                        maxCol = l;
                     }
                 }
-                if (allZero && b_copy[i] != 0) {
-                    // система не имеет решений
-                    return {};
+            }
+
+            // если максимальный элемент равен нулю, то матрица вырождена
+            if (maxEl == 0) {
+                break;
+            }
+
+            // меняем местами строки
+            if (maxRow != i) {
+                for (int k = 0; k < m; k++) {
+                    std::swap(A_copy(i, k), A_copy(maxRow, k));
                 }
-                continue; // переходим к следующей строке
+                std::swap(b_copy[i], b_copy[maxRow]);
+            }
+            // меняем местами столбцы и запоминаем перестановку
+            if (maxCol != i) {
+                for (int k = 0; k < n; k++) {
+                    std::swap(A_copy(k, i), A_copy(k, maxCol));
+                }
+                std::swap(col_permutation[i], col_permutation[maxCol]);
+                std::swap(pivot[i], pivot[maxCol]);
             }
 
-            for (int k = i; k < m; k++) {
-                std::swap(A_copy(maxRow, k), A_copy(i, k));
-            }
-            std::swap(b_copy[maxRow], b_copy[i]);
-
-            // делать все строки ниже текущей ведущей строки 0 в текущем столбце
             pivot[i] = i;
+            rank++;
+
+            // обнуляем элементы ниже по текущему столбцу
             for (int k = i + 1; k < n; k++) {
-                if (A_copy(k, i) == 0) continue;
                 double c = -A_copy(k, i) / A_copy(i, i);
                 for (int j = i; j < m; j++) {
-                    if (i == j) {
-                        A_copy(k, j) = 0;
-                    }
-                    else {
-                        A_copy(k, j) += c * A_copy(i, j);
-                    }
+                    A_copy(k, j) += c * A_copy(i, j);
                 }
                 b_copy[k] += c * b_copy[i];
             }
         }
 
-        // ранг матрицы
-        int rank = 0;
-        for (int i = 0; i < std::min(n, m); i++) {
-            if (pivot[i] != -1) {
-                rank++;
+        //std::cout << "Rank of the matrix: " << rank << std::endl;
+
+        // проверка на совместимость системы с учётом перестановок столбцов
+        for (int i = rank; i < n; i++) {
+            if (fabs(b_copy[i]) > 1e-10) {
+                // система несовместна
+                //std::cout << "System is incompatible" << std::endl;
+                return {};
             }
         }
 
-        // система имеет бесконечно много решений
+        // если система совместна, находим решения
         if (rank < m) {
+            // система имеет бесконечно много решений
             std::vector<Vector> solutions;
 
-            // найти одно решение
+            // находим одно частное решение
             Vector particular_solution(m);
             for (int i = rank - 1; i >= 0; i--) {
-                if (pivot[i] != -1) {
-                    particular_solution[pivot[i]] = b_copy[i];
-                    for (int j = i + 1; j < m; j++) {
-                        particular_solution[pivot[i]] -= A_copy(i, j) * particular_solution[j];
-                    }
-                    particular_solution[pivot[i]] /= A_copy(i, i);
+                double sum = 0.0;
+                for (int j = i + 1; j < m; j++) {
+                    sum += A_copy(i, j) * particular_solution[j];
                 }
+                particular_solution[pivot[i]] = (b_copy[i] - sum) / A_copy(i, i);
             }
-            solutions.push_back(particular_solution);
 
-            // найти базисы
+            // применяем перестановки столбцов к частному решению
+            Vector permuted_particular_solution(m);
+            for (int i = 0; i < m; ++i) {
+                permuted_particular_solution[col_permutation[i]] = particular_solution[i];
+            }
+            solutions.push_back(permuted_particular_solution);
+
+            // находим базис пространства решений однородной системы
             for (int free_var = 0; free_var < m; free_var++) {
                 if (std::find(pivot.begin(), pivot.end(), free_var) == pivot.end()) {
                     Vector basis(m);
                     basis[free_var] = 1;
                     for (int i = rank - 1; i >= 0; i--) {
-                        if (pivot[i] != -1) {
-                            for (int j = i + 1; j < m; j++) {
-                                basis[pivot[i]] -= A_copy(i, j) * basis[j];
-                            }
-                            basis[pivot[i]] /= A_copy(i, i);
+                        double sum = 0.0;
+                        for (int j = i + 1; j < m; j++) {
+                            sum += A_copy(i, j) * basis[j];
                         }
+                        basis[pivot[i]] = (0 - sum) / A_copy(i, i);
                     }
-                    solutions.push_back(basis);
+
+                    // применяем перестановки столбцов к базисному вектору
+                    Vector permuted_basis(m);
+                    for (int i = 0; i < m; ++i) {
+                        permuted_basis[col_permutation[i]] = basis[i];
+                    }
+                    solutions.push_back(permuted_basis);
                 }
             }
+
             return solutions;
         }
-
-        // обратная подстановка для нахождения решения
-        Vector x(m);
-        for (int i = m - 1; i >= 0; i--) {
-            if (pivot[i] == -1) continue;
-            x[pivot[i]] = b_copy[i];
-            for (int j = i + 1; j < m; j++) {
-                x[pivot[i]] -= A_copy(i, j) * x[j];
+        else {
+            // система имеет единственное решение
+            Vector x(m);
+            for (int i = m - 1; i >= 0; i--) {
+                double sum = 0.0;
+                for (int j = i + 1; j < m; j++) {
+                    sum += A_copy(i, j) * x[j];
+                }
+                x[pivot[i]] = (b_copy[i] - sum) / A_copy(i, i);
             }
-            x[pivot[i]] /= A_copy(i, i);
+
+            // переставляем элементы решения в соответствии с перестановками столбцов
+            Vector result(m);
+            for (int i = 0; i < m; ++i) {
+                result[col_permutation[i]] = x[i];
+            }
+
+            return { result };
         }
-        return { x };
     }
 };
